@@ -86,7 +86,7 @@ SubProcessInvoke("az group exists --name " + config['resource_group_name'])
 fqdn = config['dns_prefix'] + ".westeurope.cloudapp.azure.com"
 connection_string = config['admin_username'] + "@" + fqdn
 print "8. Get cluster configuration from master node"
-SubProcessInvoke("scp " + connection_string + ":.kube/config .")
+SubProcessInvoke("scp -oStrictHostKeyChecking=no " + connection_string + ":.kube/config .")
 
 print "9. Verifying deployment and cluster health"
 SubProcessInvoke("kubectl cluster-info")
