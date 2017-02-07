@@ -58,7 +58,6 @@ def SubProcessInvoke(bashCommand):
 
 print "Starting Azure Container Service Deployment..."
 
-#TODO: Read filepath from args
 path_to_cluster_definition = "example-cluster-definition"
 
 print "1. Reading config file"
@@ -88,7 +87,16 @@ connection_string = config['admin_username'] + "@" + fqdn
 print "8. Get cluster configuration from master node"
 SubProcessInvoke("scp -oStrictHostKeyChecking=no " + connection_string + ":.kube/config .")
 
-print "9. Verifying deployment and cluster health"
-SubProcessInvoke("kubectl cluster-info")
+print "9. Configure cluster client"
+SubProcessInvoke("export KUBECONFIG=$(pwd)/config")
+
+print "10. Verifying deployment and cluster health"
+SubProcessInvoke("kubectl cluster-info | grep stopped")
+
+#TODO:
+# - add exception handling
+# - add compensating behaviour
+# - parameterised cluster definition
+# - proper cluster validation tests
 
 
