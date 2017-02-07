@@ -1,0 +1,17 @@
+{
+    "master_count": 1,
+    "master_vmsize": "<vmsize>",
+    "agent_count": 3,
+    "agent_vmsize": "<vmsize>",
+    "agent_poolname": "<agent_name>",
+    "dns_prefix": "<dns_prefix>",
+    "admin_username": "<username>",
+    "ssh_pub_key": "<pub_key>",
+    "service_principal_app_id": "<spn_app_id>",
+    "service_principal_password": "<spn_app_password>",
+    "service_principal_name": "<spn_name>",
+    "resource_group_location": "<location>",
+    "resource_group_name": "<resource_group_name>",
+    "deployment_name": "<deployment_name>",
+    "tenant": "<tenant_id>"
+}
