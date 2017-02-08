@@ -2,11 +2,13 @@ import json
 import subprocess
 import os
 import glob
-from sys import exit
+import sys
+from sys import platform
 
 ############################
 ###     Requirements     ###
 ############################
+# - linux
 # - kubectl
 # - azure cli 2.0
 # - acs-engine
@@ -45,11 +47,18 @@ def replaceTokens(filepath, cfg):
     # Close file
     file.close()
 
-def SubProcessInvoke(bashCommand):
-    print "executing $: " + bashCommand
-    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)  # On windows use shell=True
+def SubProcessInvoke(command):
+    print platform + ":> " + command
+    if platform == "linux" or platform == "linux2":
+        process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+    elif platform == "win32":
+        process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, shell=True)
+    else:
+        print "Unsupported platform " + platform
+        exit()
+
     output, error = process.communicate()
-    if(error):
+    if error is not None:
         exit()
 
 ############################
@@ -58,16 +67,22 @@ def SubProcessInvoke(bashCommand):
 
 print "Starting Azure Container Service Deployment..."
 
-path_to_cluster_definition = "example-cluster-definition"
+deployment_config_file  = None
+if len(sys.argv) > 1:
+    deployment_config_file = sys.argv[1]
+else:
+    deployment_config_file = "acs-deploy-config.json" # Default
 
-print "1. Reading config file"
-config = readConfig("acs-deploy-config.json")
+print "1. Reading config file " + deployment_config_file 
+config = readConfig(deployment_config_file)
+
+path_to_cluster_template = "example-cluster-definition"
 
 print "2. Replacing tokens in config file"
-replaceTokens(path_to_cluster_definition, config)
+replaceTokens(path_to_cluster_template, config)
 
 print "3. Invoking acs-engine with customer cluster definition"
-SubProcessInvoke("acs-engine " + path_to_cluster_definition + ".json")
+SubProcessInvoke("acs-engine " + path_to_cluster_template + ".json")
 
 print "4. Login to azure"
 SubProcessInvoke("az login --service-principal -u " + config['service_principal_name'] + " -p " + config['service_principal_password'] + " --tenant " + config['tenant'])
@@ -84,19 +99,19 @@ SubProcessInvoke("az group exists --name " + config['resource_group_name'])
 
 fqdn = config['dns_prefix'] + ".westeurope.cloudapp.azure.com"
 connection_string = config['admin_username'] + "@" + fqdn
+
+# Currently only works on Linux
 print "8. Get cluster configuration from master node"
 SubProcessInvoke("scp -oStrictHostKeyChecking=no " + connection_string + ":.kube/config .")
-
-print "9. Configure cluster client"
 SubProcessInvoke("export KUBECONFIG=$(pwd)/config")
 
-print "10. Verifying deployment and cluster health"
-SubProcessInvoke("kubectl cluster-info | grep stopped")
+print "9. Running cluster validation tests"
+SubProcessInvoke("kubectl cluster-info | grep -o error | wc -l")
 
 #TODO:
 # - add exception handling
 # - add compensating behaviour
-# - parameterised cluster definition
-# - proper cluster validation tests
-
+# - add managed disk support
+# - add cluster validation/tests
+# - cross platform support
 
