@@ -73,10 +73,13 @@ if len(sys.argv) > 1:
 else:
     deployment_config_file = "acs-deploy-config.json" # Default
 
+cwd = os.getcwd()
+print "Current working directory: " + cwd
+
 print "1. Reading config file " + deployment_config_file 
 config = readConfig(deployment_config_file)
 
-path_to_cluster_template = "example-cluster-definition"
+path_to_cluster_template = cwd + "/example-cluster-definition"
 
 print "2. Replacing tokens in config file"
 replaceTokens(path_to_cluster_template, config)
