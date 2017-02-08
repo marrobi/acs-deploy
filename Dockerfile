@@ -6,6 +6,10 @@ FROM validis/acs-engine
 # RUN "sudo apt-get install apt-transport-https"
 # RUN "sudo apt-get update && sudo apt-get install azure-cli"
 
+# Instal Curl
+RUN "sudo apt-get update"
+RUN "sudo apt-get install curl"
+
 # Install Kubectl
 RUN "curl -O https://storage.googleapis.com/kubernetes-release/release/v1.5.2/bin/linux/amd64/kubectl"
 RUN "chmod +x kubectl"
@@ -17,4 +21,3 @@ COPY . /script
 ENV ACS_CONFIG_PATH ${ACS_CONFIG_PATH}
 
 CMD ["python", "acs-deploy.py"]
-
