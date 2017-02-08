@@ -71,7 +71,10 @@ deployment_config_file  = None
 if len(sys.argv) > 1:
     deployment_config_file = sys.argv[1]
 else:
-    deployment_config_file = "acs-deploy-config.json" # Default
+    try:
+        deployment_config_file = str(os.environ['ACS_CONFIG_PATH'])
+    except:
+        deployment_config_file = "acs-deploy-config.json" # Default
 
 cwd = os.getcwd()
 print "Current working directory: " + cwd
