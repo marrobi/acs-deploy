@@ -6,7 +6,11 @@ FROM validis/acs-engine
 # RUN "sudo apt-get install apt-transport-https"
 # RUN "sudo apt-get update && sudo apt-get install azure-cli"
 
-# Instal Curl
+
+# Install sudo
+RUN "apt-get install sudo"
+
+# Install Curl
 RUN "sudo apt-get update"
 RUN "sudo apt-get install curl"
 
