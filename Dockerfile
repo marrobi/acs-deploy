@@ -1,27 +1,30 @@
-FROM validis/acs-engine
+#
+# Usage: docker run -v <mycerts>:/root/.ssh -e ACS_CONFIG_PATH=<myconfigpath> <mydockerimage>
+#
 
-# Install Azure Cli 2.0
-# RUN "echo "deb [arch=amd64] https://apt-mo.trafficmanager.net/repos/azure-cli/ wheezy main" | sudo tee /etc/apt/sources.list.d/azure-cli.list"
-# RUN "sudo apt-key adv --keyserver apt-mo.trafficmanager.net --recv-keys 417A0893"
-# RUN "sudo apt-get install apt-transport-https"
-# RUN "sudo apt-get update && sudo apt-get install azure-cli"
+FROM golang
 
+# install acs-engine locally
+RUN export PATH=$PATH:/usr/local/go/bin && \    
+    export GOPATH=$HOME/gopath
+RUN go get github.com/Azure/acs-engine && \
+    go get all && \
+    cd $GOPATH/src/github.com/Azure/acs-engine && \
+    go build && \
+    ln -s ./acs-engine /usr/bin/acs-engine
 
-# Install sudo
-RUN "apt-get install sudo"
+RUN apt-get update && \
+    apt-get install sudo
 
-# Install Curl
-RUN "sudo apt-get update"
-RUN "sudo apt-get install curl"
+# install azure cli
+RUN echo "deb [arch=amd64] https://apt-mo.trafficmanager.net/repos/azure-cli/ wheezy main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
+RUN sudo apt-key adv --keyserver apt-mo.trafficmanager.net --recv-keys 417A0893
+RUN sudo apt-get install apt-transport-https
+RUN sudo apt-get update && sudo apt-get install azure-cli
 
-# Install Kubectl
-RUN "curl -O https://storage.googleapis.com/kubernetes-release/release/v1.5.2/bin/linux/amd64/kubectl"
-RUN "chmod +x kubectl"
-RUN "mv kubectl /usr/local/bin/kubectl"
+# TODO: allow remote URL for scripts
+COPY . /scripts
 
-# TODO: Allow remote URL for scripts
-COPY . /script
+WORKDIR /scripts
 
-ENV ACS_CONFIG_PATH ${ACS_CONFIG_PATH}
-
-CMD ["python", "acs-deploy.py"]
+CMD ["python", "/scripts/acs-deploy.py"]

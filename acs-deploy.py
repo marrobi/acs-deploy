@@ -43,9 +43,7 @@ def replaceTokens(filepath, cfg):
     # Write the data out as cluster definition
     with open(filepath + ".json", 'w') as file:
         file.write(filedata)
-
-    # Close file
-    file.close()
+        print "Created custom cluster definition " + filepath + ".json"
 
 def SubProcessInvoke(command):
     print platform + ":> " + command
@@ -79,39 +77,44 @@ else:
 cwd = os.getcwd()
 print "Current working directory: " + cwd
 
-print "1. Reading config file " + deployment_config_file 
+gopath = os.environ['GOPATH']
+print "GOPATH = " + gopath
+acscertpath = os.environ['ACS_CERT_PATH']
+print "ACS_CERT_PATH = " + acscertpath
+
+print "Reading config file " + deployment_config_file 
 config = readConfig(deployment_config_file)
 
 path_to_cluster_template = cwd + "/example-cluster-definition"
 
-print "2. Replacing tokens in config file"
+print "Replacing tokens in config file"
 replaceTokens(path_to_cluster_template, config)
 
-print "3. Invoking acs-engine with customer cluster definition"
-SubProcessInvoke("acs-engine " + path_to_cluster_template + ".json")
+print "Invoking acs-engine with customer cluster definition"
+SubProcessInvoke("acs-engine " + path_to_cluster_template + ".json --caCertificatePath '/root/.ssh'")
 
-print "4. Login to azure"
+print "Login to azure"
 SubProcessInvoke("az login --service-principal -u " + config['service_principal_name'] + " -p " + config['service_principal_password'] + " --tenant " + config['tenant'])
 
-print "5. Creating resource group"
+print "Creating resource group"
 SubProcessInvoke("az group create --name " + config['resource_group_name'] + " --location " + config['resource_group_location'])
 
-print "6. Creating azure container service deployment"
+print "Creating azure container service deployment"
 latest_definition = max(glob.glob(os.path.join('_output/', '*/')), key=os.path.getmtime)
 SubProcessInvoke("az group deployment create --name " + config['deployment_name'] + " --resource-group " + config['resource_group_name'] + " --template-file " + "./" + latest_definition + "/azuredeploy.json" + " --parameters " + "@./" + latest_definition + "/azuredeploy.parameters.json")
 
-print "7. Validate resource group exists in azure"
+print "Validate resource group exists in azure"
 SubProcessInvoke("az group exists --name " + config['resource_group_name'])
 
 fqdn = config['dns_prefix'] + ".westeurope.cloudapp.azure.com"
 connection_string = config['admin_username'] + "@" + fqdn
 
 # Currently only works on Linux
-print "8. Get cluster configuration from master node"
+print "Get cluster configuration from master node"
 SubProcessInvoke("scp -oStrictHostKeyChecking=no " + connection_string + ":.kube/config .")
 SubProcessInvoke("export KUBECONFIG=$(pwd)/config")
 
-print "9. Running cluster validation tests"
+print "Running cluster validation tests"
 SubProcessInvoke("kubectl cluster-info | grep -o error | wc -l")
 
 #TODO:
