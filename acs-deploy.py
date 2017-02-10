@@ -1,121 +1,171 @@
+''' 
+external dependenices:
+----------------------
+* linux
+* python 2.7+
+* kubectl
+* acs-engine
+* the existence of a cluster-definition-template
+'''
+
 import json
 import subprocess
 import os
 import glob
 import sys
+import time
 from sys import platform
+from string import digits
 
-############################
-###     Requirements     ###
-############################
-# - linux
-# - kubectl
-# - azure cli 2.0
-# - acs-engine
-# - python
+def invoke_sub_process(command):
+    print "Executed: " + command
 
-############################
-### Function Definitions ###
-############################
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
 
-def readConfig(filepath):
+    output, error = process.communicate()
+
+    if error is not None:
+        print str(error)
+        exit()
+
+    return output
+
+def read_config(filepath):
+    print "Reading config file " + deployment_config_file 
+
     with open(filepath) as json_data:
         return json.load(json_data) 
 
-def replaceTokens(filepath, cfg):
-    # Load template into string
+def replace_tokens(filepath, cfg):
+    # load template into string
     filedata = None
-    with open(filepath + ".temp", 'r') as file :
+    with open(filepath + "-template.json", 'r') as file :
         filedata = file.read()
 
-    # Replace the target tokens with config values
+    # TODO: valid config values
+    dns_prefix = cfg['dns_prefix']
+    
+    if dns_prefix != ''.join(i for i in dns_prefix if not i.isdigit()):
+        print "Config value 'dns_prefix' can only contain alphabetical characters"
+        exit()
+    if len(dns_prefix) > 8:
+        print "Config value 'dns_prefix' is too long, max 8 chars"
+        exit()
+
+    ssh = invoke_sub_process("more " + cfg['SSHPATH'] + "/id_rsa.pub")
+    ssh = str(ssh).strip(' ').replace("\n", "")
+
+    # replace the target tokens with config values
     filedata = filedata.replace("\"__MASTERCOUNT__\"", str(cfg['master_count']))
     filedata = filedata.replace( "__MASTERVMSIZE__", cfg['master_vmsize'])
-    filedata = filedata.replace( "__DNSPREFIX__", cfg['dns_prefix'])
+    filedata = filedata.replace( "__DNSPREFIX__", dns_prefix)
     filedata = filedata.replace( "\"__AGENTCOUNT__\"", str(cfg['agent_count']))
     filedata = filedata.replace( "__AGENTPOOLNAME__", cfg['agent_poolname'])
     filedata = filedata.replace( "__AGENTVMSIZE__", cfg['agent_vmsize'])
     filedata = filedata.replace( "__ADMINUSERNAME__", cfg['admin_username'])
-    filedata = filedata.replace( "__SSHPUBKEY__", cfg['ssh_pub_key'])
+    filedata = filedata.replace( "__SSHPUBKEY__", str(ssh))
     filedata = filedata.replace( "__SERVICEPRINCIPALAPPKEY__", cfg['service_principal_app_id'])
     filedata = filedata.replace( "__SERVICEPRINCIPALSECRET__", cfg['service_principal_password'])
 
-    # Write the data out as cluster definition
+    # write the data out as cluster definition
     with open(filepath + ".json", 'w') as file:
         file.write(filedata)
-        print "Created custom cluster definition " + filepath + ".json"
+        print "Created custom cluster definition " + filepath
 
-def SubProcessInvoke(command):
-    print platform + ":> " + command
-    if platform == "linux" or platform == "linux2":
-        process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-    elif platform == "win32":
-        process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, shell=True)
+def check_dependencies():
+    print "....."
+    print "Running dependency checks"
+    print "....."
+
+    print "Checking platform support"
+    if(platform != "linux" and platform != "linux2"):
+        print "This script only works on the Linux platform"
+        exit()
     else:
-        print "Unsupported platform " + platform
+        print "Success, supported platform"
+
+    print "Checking dependencies"
+    invoke_sub_process("az")
+    invoke_sub_process("acs-engine")
+    invoke_sub_process("kubectl")
+    print "Success, all dependencies installed"
+
+    print "Checking cluster definition template exist"
+    file_exists = os.path.isfile("cluster-definition-template.json") 
+    if file_exists == False:
+        print "Cluster definition template does not exist!"
         exit()
+    print "Success, cluster definition file exists"
 
-    output, error = process.communicate()
-    if error is not None:
-        exit()
+# start script...
+check_dependencies()
 
-############################
-###        Script        ###
-############################
-
-print "Starting Azure Container Service Deployment..."
+print "....."
+print "Starting Azure Container Service Deployment"
+print "....."
 
 deployment_config_file  = None
+
+# set the config via...
 if len(sys.argv) > 1:
+    # command line argument
     deployment_config_file = sys.argv[1]
 else:
     try:
+        # enviroment variable
         deployment_config_file = str(os.environ['ACS_CONFIG_PATH'])
     except:
-        deployment_config_file = "acs-deploy-config.json" # Default
+        # default
+        deployment_config_file = "acs-deploy-config.json"
 
-cwd = os.getcwd()
-print "Current working directory: " + cwd
+config = read_config(deployment_config_file)
+root_cluster_definition_name = "cluster-definition"
 
-gopath = os.environ['GOPATH']
-print "GOPATH = " + gopath
-acscertpath = os.environ['ACS_CERT_PATH']
-print "ACS_CERT_PATH = " + acscertpath
-
-print "Reading config file " + deployment_config_file 
-config = readConfig(deployment_config_file)
-
-path_to_cluster_template = cwd + "/example-cluster-definition"
+# initialise properties
+print ""
+config['GOPATH'] = os.environ['GOPATH']
+print "GOPATH=" + config['GOPATH']
+config['HOME'] = os.environ['HOME']
+config['SSHPATH'] = config['HOME'] + "/.ssh/"
+print "SSHPATH=" + config['SSHPATH']
+config['CWD'] = os.getcwd()
+print "CWD=" + config['CWD']
+print ""
 
 print "Replacing tokens in config file"
-replaceTokens(path_to_cluster_template, config)
+replace_tokens(root_cluster_definition_name, config)
 
-print "Invoking acs-engine with customer cluster definition"
-SubProcessInvoke("acs-engine " + path_to_cluster_template + ".json --caCertificatePath '/root/.ssh'")
+print "Executing acs-engine with custom cluster definition"
+invoke_sub_process("acs-engine " + root_cluster_definition_name + ".json" + " --caCertificatePath " + config['SSHPATH'])
 
 print "Login to azure"
-SubProcessInvoke("az login --service-principal -u " + config['service_principal_name'] + " -p " + config['service_principal_password'] + " --tenant " + config['tenant'])
+invoke_sub_process("az login --service-principal -u " + config['service_principal_name'] + " -p " + config['service_principal_password'] + " --tenant " + config['tenant'])
 
 print "Creating resource group"
-SubProcessInvoke("az group create --name " + config['resource_group_name'] + " --location " + config['resource_group_location'])
+invoke_sub_process("az group create --name " + config['resource_group_name'] + " --location " + config['resource_group_location'])
 
 print "Creating azure container service deployment"
 latest_definition = max(glob.glob(os.path.join('_output/', '*/')), key=os.path.getmtime)
-SubProcessInvoke("az group deployment create --name " + config['deployment_name'] + " --resource-group " + config['resource_group_name'] + " --template-file " + "./" + latest_definition + "/azuredeploy.json" + " --parameters " + "@./" + latest_definition + "/azuredeploy.parameters.json")
+invoke_sub_process("az group deployment create --name " + config['deployment_name'] + " --resource-group " + config['resource_group_name'] + " --template-file " + "./" + latest_definition + "/azuredeploy.json" + " --parameters " + "@./" + latest_definition + "/azuredeploy.parameters.json")
 
 print "Validate resource group exists in azure"
-SubProcessInvoke("az group exists --name " + config['resource_group_name'])
+invoke_sub_process("az group exists --name " + config['resource_group_name'])
 
-fqdn = config['dns_prefix'] + ".westeurope.cloudapp.azure.com"
+fqdn = config['dns_prefix'] + "." + config['resource_group_location'] + ".cloudapp.azure.com"
 connection_string = config['admin_username'] + "@" + fqdn
 
-# Currently only works on Linux
 print "Get cluster configuration from master node"
-SubProcessInvoke("scp -oStrictHostKeyChecking=no " + connection_string + ":.kube/config .")
-SubProcessInvoke("export KUBECONFIG=$(pwd)/config")
+invoke_sub_process("scp -oStrictHostKeyChecking=no " + connection_string + ":.kube/config .")
+os.environ['KUBECONFIG'] = config['CWD'] + "/config"
 
 print "Running cluster validation tests"
-SubProcessInvoke("kubectl cluster-info | grep -o error | wc -l")
+process = subprocess.Popen("kubectl cluster-info | grep -o error | wc -l", stdout=subprocess.PIPE, shell=True)
+num_errors = int(process.communicate()[0])
+
+if(num_errors > 0):
+    print "Cluster is alive but not all services look are healthy"
+else:
+    print "Cluster is alive and all services look healthy"
 
 #TODO:
 # - add exception handling
