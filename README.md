@@ -21,3 +21,9 @@ get comprehensive output without it.
 * python 2.7+
 * kubectl
 * acs-engine
+
+### TODO:
+* add compensating behaviour on failure
+* add managed disk support
+* add cluster validation/tests
+* add config validation

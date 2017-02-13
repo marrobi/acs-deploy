@@ -8,16 +8,18 @@ from sys import platform
 from string import digits
 
 def invoke_sub_process(command):
-    print "Executed: " + command
+    print "Executing: " + command
 
-    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-
-    output, error = process.communicate()
-
-    if error is not None:
-        print str(error)
-        exit()
-
+    try:
+        process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+        output, error = process.communicate()
+    except:
+        "Exception when executing the command '" + command + "'"
+    else:
+        # No exception but possible stderr error
+        if error is not None:
+            print str(error)
+            exit()
     return output
 
 def read_config(filepath):
@@ -87,6 +89,14 @@ def check_dependencies():
         exit()
     print "Success, cluster definition file exists"
 
+    print "Checking public SSH key is mounted"
+    home = os.environ['HOME']
+    file_exists = os.path.isfile("/root/.ssh/id_rsa.pub")
+    if file_exists == False:
+        print "Public SSH key was not mounted correctly!"
+        exit()
+    print "Success, public SSH key mounted"
+
 # start script...
 check_dependencies()
 
@@ -111,12 +121,12 @@ else:
 config = read_config(deployment_config_file)
 root_cluster_definition_name = "cluster-definition"
 
-# initialise properties
+# initialise vars
 print ""
 config['GOPATH'] = os.environ['GOPATH']
 print "GOPATH=" + config['GOPATH']
 config['HOME'] = os.environ['HOME']
-config['SSHPATH'] = config['HOME'] + "/.ssh/"
+config['SSHPATH'] = "/root/.ssh/"
 print "SSHPATH=" + config['SSHPATH']
 config['CWD'] = os.getcwd()
 print "CWD=" + config['CWD']
@@ -157,10 +167,4 @@ if(num_errors > 0):
 else:
     print "Cluster is alive and all services look healthy"
 
-#TODO:
-# - add exception handling
-# - add compensating behaviour
-# - add managed disk support
-# - add cluster validation/tests
-# - cross platform support
 
