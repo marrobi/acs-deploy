@@ -1,13 +1,3 @@
-''' 
-external dependenices:
-----------------------
-* linux
-* python 2.7+
-* kubectl
-* acs-engine
-* the existence of a cluster-definition-template
-'''
-
 import json
 import subprocess
 import os
