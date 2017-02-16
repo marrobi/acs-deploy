@@ -91,7 +91,7 @@ def check_dependencies():
 
     print "Checking public SSH key is mounted"
     home = os.environ['HOME']
-    file_exists = os.path.isfile("/root/.ssh/id_rsa.pub")
+    file_exists = os.path.isfile(home + "/.ssh/id_rsa.pub")
     if file_exists == False:
         print "Public SSH key was not mounted correctly!"
         exit()
@@ -126,7 +126,7 @@ print ""
 config['GOPATH'] = os.environ['GOPATH']
 print "GOPATH=" + config['GOPATH']
 config['HOME'] = os.environ['HOME']
-config['SSHPATH'] = "/root/.ssh/"
+config['SSHPATH'] = config['HOME'] + "/.ssh/"
 print "SSHPATH=" + config['SSHPATH']
 config['CWD'] = os.getcwd()
 print "CWD=" + config['CWD']

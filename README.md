@@ -22,6 +22,26 @@ get comprehensive output without it.
 * kubectl
 * acs-engine
 
+### Config File Example
+```
+{
+    "master_count": 1,
+    "master_vmsize": "Standard_D2_v2",
+    "agent_count": 3,
+    "agent_vmsize": "Standard_D2_v2",
+    "agent_poolname": "myagentpool",
+    "dns_prefix": "<dns_prefix>",
+    "admin_username": "<admin_username>",
+    "service_principal_app_id": "",
+    "service_principal_password": "",
+    "service_principal_name": "",
+    "resource_group_location": "<location>",
+    "resource_group_name": "<resource_group_name>",
+    "deployment_name": "<deployment_name>",
+    "tenant": "<azure_tenant>"
+}
+```
+
 ### TODO:
 * add compensating behaviour on failure
 * add managed disk support
